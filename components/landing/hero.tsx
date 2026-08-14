@@ -5,9 +5,13 @@ import { Button } from "@/components/ui/button";
 export function Hero() {
   return (
     <section className="pt-44">
-      <div className="mx-auto max-w-7xl px-6">
-        <h1 className="max-w-2xl text-balance text-5xl font-medium tracking-tight md:text-6xl lg:mt-16">
-          Tư vấn hồ sơ du học, rõ ràng từ báo giá đến xét duyệt
+      <div className="mx-auto max-w-7xl px-6 lg:mt-16">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+          DuHoc24 · Tư vấn du học
+        </p>
+        <h1 className="mt-5 max-w-2xl text-balance text-5xl font-medium leading-[1.08] tracking-tight md:text-6xl">
+          Hồ sơ du học minh bạch,{" "}
+          <span className="text-muted-foreground">từ báo giá đến khi được duyệt</span>
         </h1>
 
         <p className="mt-6 max-w-2xl text-balance text-muted-foreground md:text-lg">
@@ -19,6 +23,7 @@ export function Hero() {
           <Button
             size="lg"
             nativeButton={false}
+            className="bg-blue-600 text-white hover:bg-blue-700"
             render={<Link href="#bao-gia">Nhận báo giá ngay</Link>}
           />
           <Button

@@ -11,7 +11,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: "DuHoc24 — Cổng Tiếp Nhận Hồ Sơ Du Học",
   description:
-    "Tư vấn hồ sơ du học, rõ ràng từ báo giá đến xét duyệt. Nhận báo giá tức thì, nộp hồ sơ trực tuyến và theo dõi kết quả đối chiếu điểm chuẩn.",
+    "Hồ sơ du học minh bạch, từ báo giá đến khi được duyệt. Nhận báo giá tức thì, nộp hồ sơ trực tuyến và theo dõi kết quả đối chiếu điểm chuẩn.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

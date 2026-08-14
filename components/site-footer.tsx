@@ -10,7 +10,7 @@ export function SiteFooter() {
           <div className="col-span-full lg:col-span-2">
             <Logo uniColor />
             <p className="mt-4 max-w-sm text-sm text-muted-foreground">
-              Tư vấn hồ sơ du học, rõ ràng từ báo giá đến xét duyệt. Đồng hành cùng
+              Hồ sơ du học minh bạch, từ báo giá đến khi được duyệt. Đồng hành cùng
               học viên từ bước chọn trường đến khi hoàn tất hồ sơ.
             </p>
           </div>

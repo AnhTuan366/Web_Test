@@ -176,7 +176,11 @@ export function QuoteForm() {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="w-full sm:w-auto">
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
+            >
               Nhận báo giá
             </Button>
 

@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "Bạn đang chạy như một Stop hook trong repo Next.js này (D:\\GitHub\\Web_Test) ngay sau khi Claude Code kết thúc một lượt phản hồi. Nhiệm vụ: giữ cho CLAUDE.md luôn phản ánh đúng kiến trúc/quy ước hiện tại của dự án.\n\nBước 1 — kiểm tra nhanh có đáng làm tiếp không:\n- Chạy `git status --porcelain` và `git diff --stat` để xem các file đã thay đổi (working tree, chưa cần commit).\n- Nếu KHÔNG có thay đổi nào ngoài CLAUDE.md, HOẶC các thay đổi chỉ là sửa lỗi nhỏ/định dạng/nội dung mock data không ảnh hưởng kiến trúc, DỪNG NGAY, không đọc thêm file, không sửa gì cả, không xuất systemMessage.\n\nBước 2 — chỉ khi có thay đổi thuộc các loại sau, tiếp tục:\n- Thêm/xoá route, trang, hoặc thư mục lớn trong app/ hoặc components/\n- Thay đổi dependencies quan trọng trong package.json (thêm/xoá package, đổi framework/version lớn)\n- Thay đổi cấu hình (next.config.ts, tsconfig.json, components.json, eslint.config.mjs)\n- Thay đổi quy ước code đã nêu trong CLAUDE.md (ví dụ đổi cách đặt tên, đổi thư viện UI, đổi ngôn ngữ giao diện)\n- Thêm quy tắc/ràng buộc mới quan trọng cho việc phát triển (ví dụ quy tắc git, quy tắc bảo mật)\n\nBước 3 — nếu có thay đổi đáng kể:\n- Đọc CLAUDE.md hiện tại.\n- Đối chiếu với thay đổi thực tế (đọc các file liên quan nếu cần).\n- Dùng Edit để cập nhật CLAUDE.md cho khớp: sửa các phần liên quan (Kiến trúc, Quy ước, Lệnh thường dùng...), giữ nguyên văn phong tiếng Việt và cấu trúc heading hiện có. KHÔNG viết lại toàn bộ file, chỉ sửa phần cần thiết. KHÔNG thêm mục chung chung (ví dụ 'viết test cho mọi hàm', 'không commit secret') nếu không có bằng chứng cụ thể trong code.\n- Sau khi sửa xong, output đúng JSON sau (không kèm text khác): {\"systemMessage\": \"Đã cập nhật CLAUDE.md: <tóm tắt ngắn gọn 1 câu>\"}\n\nNếu xét thấy không cần sửa gì ở bước 3, KHÔNG output gì cả (im lặng, không tạo systemMessage, không gọi thêm tool nào).",
+            "model": "claude-sonnet-5",
+            "timeout": 180,
+            "statusMessage": "Đang kiểm tra CLAUDE.md có cần cập nhật..."
+          }
+        ]
+      }
+    ]
+  }
+}
