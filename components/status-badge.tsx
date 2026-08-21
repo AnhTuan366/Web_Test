@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { DocStatus, RequestStatus } from "@/lib/mock-data";
-import { CheckCircle2, CircleDashed, Loader2, TriangleAlert } from "lucide-react";
+import type { LeadQuality } from "@/lib/lead-extraction";
+import { CheckCircle2, CircleDashed, Loader2, ShieldAlert, TriangleAlert } from "lucide-react";
 
 type Tone = "gray" | "yellow" | "green" | "red";
 
@@ -81,6 +82,24 @@ export function RequestStatusBadge({ status, className }: { status: RequestStatu
     <StatusBadge
       tone={meta.tone}
       label={meta.label}
+      className={className}
+    />
+  );
+}
+
+export const leadQualityMeta: Record<LeadQuality, { label: string; tone: Tone; icon: React.ReactNode }> = {
+  good: { label: "Tốt", tone: "green", icon: <CheckCircle2 className="size-3.5" /> },
+  ok: { label: "Tạm ổn", tone: "yellow", icon: <TriangleAlert className="size-3.5" /> },
+  spam: { label: "Spam", tone: "red", icon: <ShieldAlert className="size-3.5" /> },
+};
+
+export function LeadQualityBadge({ quality, className }: { quality: LeadQuality; className?: string }) {
+  const meta = leadQualityMeta[quality];
+  return (
+    <StatusBadge
+      tone={meta.tone}
+      label={meta.label}
+      icon={meta.icon}
       className={className}
     />
   );

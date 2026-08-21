@@ -70,8 +70,8 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
 
 ### Chatbot QnA (Gemini + Supabase) — điểm nối API/DB thật duy nhất hiện tại
 
-- [`app/api/chat/route.ts`](app/api/chat/route.ts): Route Handler `GET`/`POST` duy nhất trong dự án.
-  `POST` nhận `{ message, sessionToken }`, gọi REST API Gemini (model `gemini-3.5-flash-lite`) bằng
+- [`app/api/chat/route.ts`](app/api/chat/route.ts): Route Handler `GET`/`POST` chính của chatbot
+  (route handler thứ hai là `app/api/admin/extract-lead/route.ts`, xem bên dưới). `POST` nhận `{ message, sessionToken }`, gọi REST API Gemini (model `gemini-3.5-flash-lite`) bằng
   `GEMINI_API_KEY`, đồng thời đọc/ghi hội thoại vào Supabase (bảng `chat_conversations` /
   `chat_messages`) qua `ctx.supabaseAdmin` (`withSupabase({ auth: "none" })` từ gói `@supabase/server`
   — xem SKILL `supabase-server`). `GET ?sessionToken=` trả lại lịch sử hội thoại để hydrate widget.
@@ -81,9 +81,10 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
   import. Đây là cách DUY NHẤT được phép đọc/ghi 2 bảng chat — không tạo Supabase client khác truy
   cập 2 bảng này, và không expose publishable key cho tính năng này (RLS bật, không có policy nào,
   nên trình duyệt dù có publishable key cũng không đọc/ghi được).
-- [`lib/chatbot-knowledge.ts`](lib/chatbot-knowledge.ts): nguồn duy nhất cho bộ câu hỏi/trả lời
-  chuẩn (`chatbotQna`) và system instruction (`chatbotSystemInstruction`) ép Gemini chỉ trả lời
-  trong đúng phạm vi này. Muốn sửa/thêm QnA thì sửa ở đây — **không** hardcode câu trả lời trong
+- [`lib/chatbot-knowledge.ts`](lib/chatbot-knowledge.ts): nguồn duy nhất cho `chatbotSystemInstruction`
+  (persona, luồng hội thoại thu thập lead theo từng bước, quy tắc trả lời) và `chatbotQna` (bộ câu
+  hỏi gợi ý nhanh cho 4 nút trong widget — không còn ràng buộc phạm vi trả lời của Gemini). Muốn
+  sửa persona/luồng hội thoại hoặc bộ câu hỏi gợi ý thì sửa ở đây — **không** hardcode trong
   component hay trong route handler.
 - [`components/landing/chat-widget.tsx`](components/landing/chat-widget.tsx): client component chỉ
   gọi `/api/chat` (không bao giờ gọi Supabase trực tiếp). Tự sinh `sessionToken` (UUID) lưu
@@ -97,7 +98,24 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
   qua `getSupabaseAdmin()`, hiển thị dạng bong bóng chat (khách phải/bot trái). `id` không tồn tại thì
   gọi `notFound()` (`next/navigation`) trả 404 chuẩn. Các nút/link điều hướng trong 2 trang này dùng
   `<Button render={<Link .../>} nativeButton={false} />` — bắt buộc set `nativeButton={false}` khi
-  `render` không phải `<button>` thật, nếu không Base UI sẽ log warning ở console.
+  `render` không phải `<button>` thật, nếu không Base UI sẽ log warning ở console. Trang này cũng đọc
+  bảng `chat_leads` (nếu có) và hiển thị Card "Thông tin lead" phía trên khung tin nhắn.
+- [`lib/lead-extraction.ts`](lib/lead-extraction.ts): nguồn duy nhất cho system instruction +
+  JSON schema (structured output) dùng để nhờ Gemini trích xuất thông tin lead (tên, email, SĐT,
+  quốc gia, bậc học, ngành học, availability, đã đặt lịch tư vấn, ghi chú, đánh giá chất lượng
+  `good`/`ok`/`spam`) từ nội dung một hội thoại.
+- [`app/api/admin/extract-lead/route.ts`](app/api/admin/extract-lead/route.ts): Route Handler `POST`
+  thứ hai trong dự án (`withSupabase({ auth: "none" })`, cùng mô hình bảo mật như `/api/chat` — chỉ
+  server có secret key mới đọc/ghi được, chưa có auth cho `/admin/*` nên endpoint này cũng chưa có
+  auth). Nhận `{ conversationId }`, đọc toàn bộ tin nhắn của hội thoại đó, gọi Gemini
+  (`gemini-3.5-flash-lite`) với schema ở `lib/lead-extraction.ts`, rồi `upsert` kết quả vào bảng
+  `chat_leads` (unique theo `conversation_id`, gọi lại sẽ ghi đè lần trích xuất trước). Được kích hoạt
+  thủ công từ nút trong [`components/admin/extract-lead-button.tsx`](components/admin/extract-lead-button.tsx)
+  (client component, gọi `router.refresh()` sau khi lưu xong) — **không** tự động chạy khi khách
+  nhắn tin, chỉ chạy khi admin bấm nút trong trang chi tiết hội thoại.
+- [`chat_leads`](lib/database.types.ts): bảng Supabase lưu kết quả trích xuất lead, RLS bật và không
+  có policy nào (cùng mô hình với `chat_conversations`/`chat_messages`) — chỉ `getSupabaseAdmin()`
+  phía server mới đọc/ghi được.
 
 ### Quy ước cần theo
 

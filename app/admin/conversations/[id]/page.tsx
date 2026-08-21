@@ -1,11 +1,15 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { ExtractLeadButton } from "@/components/admin/extract-lead-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LeadQualityBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import type { LeadQuality } from "@/lib/lead-extraction";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +42,25 @@ async function getConversationDetail(id: string) {
 
   if (error) {
     console.error("Lỗi tải tin nhắn hội thoại từ Supabase", error);
-    return { conversation, messages: [] };
+    return { conversation, messages: [], lead: null };
   }
 
-  return { conversation, messages };
+  const { data: lead } = await supabaseAdmin
+    .from("chat_leads")
+    .select("*")
+    .eq("conversation_id", id)
+    .maybeSingle();
+
+  return { conversation, messages, lead };
+}
+
+function LeadField({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium">{value ?? <span className="text-muted-foreground">—</span>}</p>
+    </div>
+  );
 }
 
 export default async function AdminConversationDetailPage({
@@ -53,7 +72,7 @@ export default async function AdminConversationDetailPage({
   const result = await getConversationDetail(id);
 
   if (!result) notFound();
-  const { conversation, messages } = result;
+  const { conversation, messages, lead } = result;
 
   return (
     <>
@@ -74,6 +93,57 @@ export default async function AdminConversationDetailPage({
           />
         }
       />
+
+      <Card className="mb-6 p-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-medium">Thông tin lead</h2>
+            {lead ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Trích xuất lúc {formatDateTime(lead.extracted_at)}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Chưa trích xuất — bấm nút để phân tích hội thoại bằng Gemini.
+              </p>
+            )}
+          </div>
+          <ExtractLeadButton conversationId={conversation.id} hasExistingLead={!!lead} />
+        </div>
+
+        {lead && (
+          <div className="grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3">
+            <LeadField label="Họ tên" value={lead.name} />
+            <LeadField label="Email" value={lead.email} />
+            <LeadField label="Số điện thoại" value={lead.phone} />
+            <LeadField label="Quốc gia du học" value={lead.country} />
+            <LeadField label="Bậc học" value={lead.education_level} />
+            <LeadField label="Ngành học" value={lead.major} />
+            <LeadField label="Thời gian rảnh" value={lead.availability} />
+            <LeadField
+              label="Đã đặt lịch tư vấn"
+              value={
+                lead.has_booked_consultation ? (
+                  <span className="inline-flex items-center gap-1 text-green-700">
+                    <CheckCircle2 className="size-3.5" /> Đã đặt lịch
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                    <XCircle className="size-3.5" /> Chưa đặt lịch
+                  </span>
+                )
+              }
+            />
+            <LeadField
+              label="Chất lượng lead"
+              value={<LeadQualityBadge quality={lead.quality as LeadQuality} />}
+            />
+            <div className="col-span-2 sm:col-span-3">
+              <LeadField label="Ghi chú" value={lead.notes} />
+            </div>
+          </div>
+        )}
+      </Card>
 
       <Card className="p-4">
         <div className="space-y-3">

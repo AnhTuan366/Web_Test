@@ -39,6 +39,65 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_leads: {
+        Row: {
+          availability: string | null
+          conversation_id: string
+          country: string | null
+          education_level: string | null
+          email: string | null
+          extracted_at: string
+          has_booked_consultation: boolean
+          id: string
+          major: string | null
+          name: string | null
+          notes: string | null
+          phone: string | null
+          quality: string
+          updated_at: string
+        }
+        Insert: {
+          availability?: string | null
+          conversation_id: string
+          country?: string | null
+          education_level?: string | null
+          email?: string | null
+          extracted_at?: string
+          has_booked_consultation?: boolean
+          id?: string
+          major?: string | null
+          name?: string | null
+          notes?: string | null
+          phone?: string | null
+          quality: string
+          updated_at?: string
+        }
+        Update: {
+          availability?: string | null
+          conversation_id?: string
+          country?: string | null
+          education_level?: string | null
+          email?: string | null
+          extracted_at?: string
+          has_booked_consultation?: boolean
+          id?: string
+          major?: string | null
+          name?: string | null
+          notes?: string | null
+          phone?: string | null
+          quality?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_leads_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
