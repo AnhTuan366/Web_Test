@@ -12,11 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **DuHoc24** — website mẫu "Cổng Tiếp Nhận Hồ Sơ Du Học", dùng cho khoá lập trình 6 tuần, phát triển
 dần theo roadmap trong [README.md](README.md). Phần lớn dữ liệu vẫn là mock cứng trong
-[`lib/mock-data.ts`](lib/mock-data.ts) — form báo giá, cổng hồ sơ (`/portal`) và toàn bộ `/admin/*`
-**chưa** nối database/authentication thật (dự kiến Supabase ở Tuần 3, magic link ở Tuần 6). Ngoại lệ
-đã hoàn thành: khung chat QnA ở trang chủ đã nối **Gemini API thật** (Tuần 2) — xem mục "Chatbot QnA"
-bên dưới. Không tự ý thêm logic gọi API/DB thật khác (Supabase, upload file, auth...) trừ khi được
-yêu cầu rõ ràng.
+[`lib/mock-data.ts`](lib/mock-data.ts) — form báo giá, cổng hồ sơ (`/portal`) và các trang
+`/admin/requests`, `/admin/schools`, `/admin/profiles` **chưa** nối database/authentication thật (dự
+kiến Supabase ở Tuần 3, magic link ở Tuần 6). Ngoại lệ đã hoàn thành: khung chat QnA ở trang chủ đã
+nối **Gemini API thật** (Tuần 2) và lưu hội thoại thật trong **Supabase Postgres** (bảng
+`chat_conversations`/`chat_messages`, chỉ server truy cập được) — xem mục "Chatbot QnA" bên dưới.
+`/admin/conversations` đọc trực tiếp từ 2 bảng này, không còn dùng mock. Không tự ý thêm logic gọi
+API/DB thật khác (upload file, auth...) trừ khi được yêu cầu rõ ràng.
 
 ## Lệnh thường dùng
 
@@ -42,19 +44,22 @@ Registry riêng `@tailark-oss` (xem `components.json`) dùng cho các khối lan
 
 ## Kiến trúc tổng quan
 
-**App Router, không có backend riêng** — mọi trang là Server Component đọc trực tiếp từ
-`lib/mock-data.ts` (mảng/object hardcode), trừ các component tương tác (form, chat, dropdown...)
-được đánh dấu `"use client"` ở đầu file. Khi thêm dữ liệu mới, thêm vào `lib/mock-data.ts` theo
-đúng shape các type đã khai báo ở đó (`School`, `AdmissionRequest`, `StudentProfile`,
-`Conversation`, `DocStatus`, `RequestStatus`...) thay vì tạo nguồn dữ liệu song song.
+**App Router, không có backend riêng ngoài chatbot** — phần lớn trang là Server Component đọc trực
+tiếp từ `lib/mock-data.ts` (mảng/object hardcode), trừ các component tương tác (form, chat,
+dropdown...) được đánh dấu `"use client"` ở đầu file. Khi thêm dữ liệu mock mới, thêm vào
+`lib/mock-data.ts` theo đúng shape các type đã khai báo ở đó (`School`, `AdmissionRequest`,
+`StudentProfile`, `DocStatus`, `RequestStatus`...) thay vì tạo nguồn dữ liệu song song. Riêng dữ liệu
+hội thoại chatbot (`chat_conversations`/`chat_messages`) nằm trong Supabase thật — xem mục "Chatbot
+QnA" bên dưới, type tương ứng ở [`lib/database.types.ts`](lib/database.types.ts) (sinh tự động, xem
+comment đầu file để biết cách sinh lại).
 
 Ba khu vực chính, mỗi khu vực có bộ component riêng trong `components/<khu-vực>/`:
 
 | Route | Khu vực | Mô tả |
 |---|---|---|
-| `/` | `components/landing/` | Landing page: hero, form báo giá (UI tĩnh, chưa nối DB), chatbot QnA gọi Gemini API thật (xem mục "Chatbot QnA" bên dưới), 3 điểm nổi bật |
+| `/` | `components/landing/` | Landing page: hero, form báo giá (UI tĩnh, chưa nối DB), chatbot QnA gọi Gemini API thật + lưu Supabase (xem mục "Chatbot QnA" bên dưới), 3 điểm nổi bật |
 | `/portal` | `components/portal/` | Cổng hồ sơ học viên demo (dữ liệu từ `currentStudent` trong mock-data): upload giấy tờ, thông tin trích xuất, đối chiếu điểm chuẩn |
-| `/admin/*` | `components/admin/` | Dashboard nội bộ, dùng chung `AdminLayout` (`app/admin/layout.tsx`) với `AdminSidebar`/`AdminMobileNav` (`components/admin/sidebar.tsx`) — điều hướng khai báo tập trung trong mảng `adminNavItems`. `/admin` redirect sang `/admin/requests`. Các trang con: `requests`, `schools`, `profiles`, `conversations` |
+| `/admin/*` | `components/admin/` | Dashboard nội bộ, dùng chung `AdminLayout` (`app/admin/layout.tsx`) với `AdminSidebar`/`AdminMobileNav` (`components/admin/sidebar.tsx`) — điều hướng khai báo tập trung trong mảng `adminNavItems`. `/admin` redirect sang `/admin/requests`. Các trang con: `requests`, `schools`, `profiles` (mock), `conversations` (Supabase thật) |
 
 Component dùng chung nằm ngoài 3 thư mục trên: `site-header.tsx`, `site-footer.tsx`, `logo.tsx`,
 `status-badge.tsx` (định nghĩa tone màu + nhãn tiếng Việt cho `DocStatus`/`RequestStatus`, dùng
@@ -63,19 +68,36 @@ chung giữa `/portal` và `/admin`).
 `components/ui/` là các primitive shadcn/ui (style **base-nova**, nền Base UI — KHÔNG phải
 Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn ở trên.
 
-### Chatbot QnA (Gemini) — điểm nối API thật duy nhất hiện tại
+### Chatbot QnA (Gemini + Supabase) — điểm nối API/DB thật duy nhất hiện tại
 
-- [`app/api/chat/route.ts`](app/api/chat/route.ts): Route Handler `POST` duy nhất trong dự án, gọi
-  REST API Gemini (model `gemini-3.5-flash-lite`) bằng `GEMINI_API_KEY` đọc từ `.env` — chỉ chạy
-  phía server, không lộ ra client. Nhận `{ message, history }` từ client, trả `{ reply }` hoặc
-  `{ error }`.
+- [`app/api/chat/route.ts`](app/api/chat/route.ts): Route Handler `GET`/`POST` duy nhất trong dự án.
+  `POST` nhận `{ message, sessionToken }`, gọi REST API Gemini (model `gemini-3.5-flash-lite`) bằng
+  `GEMINI_API_KEY`, đồng thời đọc/ghi hội thoại vào Supabase (bảng `chat_conversations` /
+  `chat_messages`) qua `ctx.supabaseAdmin` (`withSupabase({ auth: "none" })` từ gói `@supabase/server`
+  — xem SKILL `supabase-server`). `GET ?sessionToken=` trả lại lịch sử hội thoại để hydrate widget.
+  Lịch sử gửi cho Gemini được đọc lại từ DB phía server, **không** nhận từ client nữa.
+- [`lib/supabase-admin.ts`](lib/supabase-admin.ts): helper `getSupabaseAdmin()` tạo admin client
+  (secret key, bỏ qua RLS), có `import "server-only"` để build lỗi ngay nếu code phía client lỡ
+  import. Đây là cách DUY NHẤT được phép đọc/ghi 2 bảng chat — không tạo Supabase client khác truy
+  cập 2 bảng này, và không expose publishable key cho tính năng này (RLS bật, không có policy nào,
+  nên trình duyệt dù có publishable key cũng không đọc/ghi được).
 - [`lib/chatbot-knowledge.ts`](lib/chatbot-knowledge.ts): nguồn duy nhất cho bộ câu hỏi/trả lời
   chuẩn (`chatbotQna`) và system instruction (`chatbotSystemInstruction`) ép Gemini chỉ trả lời
   trong đúng phạm vi này. Muốn sửa/thêm QnA thì sửa ở đây — **không** hardcode câu trả lời trong
   component hay trong route handler.
-- [`components/landing/chat-widget.tsx`](components/landing/chat-widget.tsx): client component gọi
-  `/api/chat`, gửi kèm lịch sử hội thoại (`history`, bỏ câu chào mở đầu) để giữ ngữ cảnh nhiều lượt;
-  4 nút gợi ý nhanh lấy trực tiếp từ `chatbotQna.slice(0, 4)` thay vì hardcode riêng.
+- [`components/landing/chat-widget.tsx`](components/landing/chat-widget.tsx): client component chỉ
+  gọi `/api/chat` (không bao giờ gọi Supabase trực tiếp). Tự sinh `sessionToken` (UUID) lưu
+  `localStorage` để server nhận diện đúng hội thoại của trình duyệt đó, nạp lại lịch sử qua `GET`
+  khi mount; 4 nút gợi ý nhanh lấy trực tiếp từ `chatbotQna.slice(0, 4)`.
+- [`app/admin/conversations/page.tsx`](app/admin/conversations/page.tsx): Server Component, đọc
+  danh sách hội thoại + đếm số tin nhắn trực tiếp từ Supabase qua `getSupabaseAdmin()`; mỗi dòng có
+  nút "Xem chi tiết" dẫn tới `/admin/conversations/[id]`.
+- [`app/admin/conversations/[id]/page.tsx`](app/admin/conversations/%5Bid%5D/page.tsx): Server
+  Component trang chi tiết một hội thoại, đọc toàn bộ tin nhắn (`chat_messages`) theo `conversation_id`
+  qua `getSupabaseAdmin()`, hiển thị dạng bong bóng chat (khách phải/bot trái). `id` không tồn tại thì
+  gọi `notFound()` (`next/navigation`) trả 404 chuẩn. Các nút/link điều hướng trong 2 trang này dùng
+  `<Button render={<Link .../>} nativeButton={false} />` — bắt buộc set `nativeButton={false}` khi
+  `render` không phải `<button>` thật, nếu không Base UI sẽ log warning ở console.
 
 ### Quy ước cần theo
 

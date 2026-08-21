@@ -13,19 +13,51 @@ interface Message {
 
 const quickQuestions = chatbotQna.slice(0, 4).map((item) => item.question);
 
-const initialMessages: Message[] = [
-  { from: "bot", text: "Chào bạn! Mình là trợ lý ảo của DuHoc24, bạn cần hỗ trợ gì về hồ sơ du học?" },
-];
+const greeting: Message = {
+  from: "bot",
+  text: "Chào bạn! Mình là trợ lý ảo của DuHoc24, bạn cần hỗ trợ gì về hồ sơ du học?",
+};
 
 const fallbackErrorText =
   "Xin lỗi, mình đang gặp sự cố khi trả lời. Bạn thử lại sau hoặc để lại email/số điện thoại trong form báo giá để đội ngũ liên hệ nhé.";
 
+const SESSION_TOKEN_KEY = "duhoc24_chat_session";
+
+// Token ẩn danh lưu trên trình duyệt chỉ để server nhận diện đúng hội thoại —
+// không phải credential Supabase, và bản thân trình duyệt không gọi Supabase.
+function getSessionToken(): string {
+  let token = localStorage.getItem(SESSION_TOKEN_KEY);
+  if (!token) {
+    token = crypto.randomUUID();
+    localStorage.setItem(SESSION_TOKEN_KEY, token);
+  }
+  return token;
+}
+
 export function ChatWidget() {
   const [open, setOpen] = React.useState(false);
-  const [messages, setMessages] = React.useState<Message[]>(initialMessages);
+  const [messages, setMessages] = React.useState<Message[]>([greeting]);
   const [input, setInput] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  const sessionTokenRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const sessionToken = getSessionToken();
+    sessionTokenRef.current = sessionToken;
+
+    // Nạp lại hội thoại đã lưu trong database — không dùng bộ nhớ tạm của trang.
+    fetch(`/api/chat?sessionToken=${encodeURIComponent(sessionToken)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data?.messages) && data.messages.length > 0) {
+          setMessages([greeting, ...data.messages]);
+        }
+      })
+      .catch(() => {
+        // Không tải được lịch sử thì vẫn giữ lời chào mặc định.
+      });
+  }, []);
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -33,10 +65,9 @@ export function ChatWidget() {
 
   async function sendMessage(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    const sessionToken = sessionTokenRef.current;
+    if (!trimmed || loading || !sessionToken) return;
 
-    // Lịch sử gửi cho model không gồm câu chào mở đầu (không phải do model sinh ra).
-    const history = messages.slice(1);
     setMessages((prev) => [...prev, { from: "user", text: trimmed }]);
     setInput("");
     setLoading(true);
@@ -45,7 +76,7 @@ export function ChatWidget() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, history }),
+        body: JSON.stringify({ message: trimmed, sessionToken }),
       });
       const data = await res.json().catch(() => null);
       const reply = res.ok && typeof data?.reply === "string" ? data.reply : fallbackErrorText;
