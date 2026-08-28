@@ -11,7 +11,7 @@ export type Json =
 
 export type Database = {
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -129,6 +129,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      quote_requests: {
+        Row: {
+          country: string
+          created_at: string
+          education_level: string
+          email: string
+          id: string
+          phone: string
+          price: number
+          service_package: string
+          status: string
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          education_level: string
+          email: string
+          id?: string
+          phone: string
+          price: number
+          service_package: string
+          status?: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          education_level?: string
+          email?: string
+          id?: string
+          phone?: string
+          price?: number
+          service_package?: string
+          status?: string
+        }
+        Relationships: []
       }
     }
     Views: {

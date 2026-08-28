@@ -1,8 +1,7 @@
-import { Check, X } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { RequestStatusButtons } from "@/components/admin/request-status-buttons";
 import { RequestStatusBadge } from "@/components/status-badge";
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -11,7 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { admissionRequests, servicePackages } from "@/lib/mock-data";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { servicePackages, type RequestStatus } from "@/lib/mock-data";
+
+export const dynamic = "force-dynamic";
+
+const educationLevelLabels: Record<string, string> = {
+  thpt: "THPT",
+  dai_hoc: "Đại học",
+  thac_si: "Thạc sĩ",
+};
 
 function formatVnd(value: number) {
   return value.toLocaleString("vi-VN") + "₫";
@@ -21,19 +29,48 @@ function packageLabel(id: string) {
   return servicePackages.find((p) => p.id === id)?.name ?? id;
 }
 
-export default function AdminRequestsPage() {
+function formatCreatedAt(isoDate: string) {
+  return new Date(isoDate).toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+async function getQuoteRequests() {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("quote_requests")
+    .select("id, country, education_level, service_package, price, email, phone, status, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Lỗi tải danh sách yêu cầu báo giá từ Supabase", error);
+    return [];
+  }
+  return data;
+}
+
+export default async function AdminRequestsPage() {
+  const requests = await getQuoteRequests();
+
   return (
     <>
       <AdminPageHeader
         title="Yêu cầu"
-        description="Danh sách yêu cầu báo giá gửi từ trang chủ, chờ đội ngũ duyệt."
+        description="Danh sách yêu cầu báo giá khách gửi từ form trên trang chủ."
       />
 
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tên khách</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Số điện thoại</TableHead>
+              <TableHead>Quốc gia</TableHead>
+              <TableHead>Bậc học</TableHead>
               <TableHead>Gói dịch vụ</TableHead>
               <TableHead>Báo giá</TableHead>
               <TableHead>Trạng thái</TableHead>
@@ -42,24 +79,34 @@ export default function AdminRequestsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {admissionRequests.map((req) => (
-              <TableRow key={req.id}>
-                <TableCell className="font-medium">{req.customerName}</TableCell>
-                <TableCell>{packageLabel(req.package)}</TableCell>
-                <TableCell>{formatVnd(req.quote)}</TableCell>
-                <TableCell>
-                  <RequestStatusBadge status={req.status} />
+            {requests.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  Chưa có yêu cầu báo giá nào.
                 </TableCell>
-                <TableCell className="text-muted-foreground">{req.createdAt}</TableCell>
+              </TableRow>
+            )}
+            {requests.map((req) => (
+              <TableRow key={req.id}>
+                <TableCell className="font-medium">{req.email}</TableCell>
+                <TableCell>{req.phone}</TableCell>
+                <TableCell>{req.country}</TableCell>
                 <TableCell>
-                  <div className="flex justify-end gap-2">
-                    <Button size="icon-sm" variant="outline" aria-label="Duyệt">
-                      <Check className="size-3.5" />
-                    </Button>
-                    <Button size="icon-sm" variant="outline" aria-label="Từ chối">
-                      <X className="size-3.5" />
-                    </Button>
-                  </div>
+                  {educationLevelLabels[req.education_level] ?? req.education_level}
+                </TableCell>
+                <TableCell>{packageLabel(req.service_package)}</TableCell>
+                <TableCell>{formatVnd(req.price)}</TableCell>
+                <TableCell>
+                  <RequestStatusBadge status={req.status as RequestStatus} />
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatCreatedAt(req.created_at)}
+                </TableCell>
+                <TableCell>
+                  <RequestStatusButtons
+                    requestId={req.id}
+                    status={req.status as RequestStatus}
+                  />
                 </TableCell>
               </TableRow>
             ))}

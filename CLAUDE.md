@@ -12,13 +12,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **DuHoc24** — website mẫu "Cổng Tiếp Nhận Hồ Sơ Du Học", dùng cho khoá lập trình 6 tuần, phát triển
 dần theo roadmap trong [README.md](README.md). Phần lớn dữ liệu vẫn là mock cứng trong
-[`lib/mock-data.ts`](lib/mock-data.ts) — form báo giá, cổng hồ sơ (`/portal`) và các trang
-`/admin/requests`, `/admin/schools`, `/admin/profiles` **chưa** nối database/authentication thật (dự
-kiến Supabase ở Tuần 3, magic link ở Tuần 6). Ngoại lệ đã hoàn thành: khung chat QnA ở trang chủ đã
-nối **Gemini API thật** (Tuần 2) và lưu hội thoại thật trong **Supabase Postgres** (bảng
-`chat_conversations`/`chat_messages`, chỉ server truy cập được) — xem mục "Chatbot QnA" bên dưới.
-`/admin/conversations` đọc trực tiếp từ 2 bảng này, không còn dùng mock. Không tự ý thêm logic gọi
-API/DB thật khác (upload file, auth...) trừ khi được yêu cầu rõ ràng.
+[`lib/mock-data.ts`](lib/mock-data.ts) — cổng hồ sơ (`/portal`) và các trang `/admin/schools`,
+`/admin/profiles` **chưa** nối database/authentication thật (dự kiến Supabase ở Tuần 3, magic link ở
+Tuần 6). Ngoại lệ đã hoàn thành: (1) khung chat QnA ở trang chủ đã nối **Gemini API thật** (Tuần 2)
+và lưu hội thoại thật trong **Supabase Postgres** (bảng `chat_conversations`/`chat_messages`, chỉ
+server truy cập được) — xem mục "Chatbot QnA" bên dưới; `/admin/conversations` đọc trực tiếp từ 2
+bảng này, không còn dùng mock. (2) Form báo giá trên trang chủ đã hoạt động thật: `POST /api/quote`
+tính giá phía server và lưu vào bảng `quote_requests` (cùng mô hình chỉ-server), `/admin/requests`
+đọc trực tiếp từ bảng này — xem mục "Form báo giá" bên dưới. Không tự ý thêm logic gọi API/DB thật
+khác (upload file, auth...) trừ khi được yêu cầu rõ ràng.
 
 ## Lệnh thường dùng
 
@@ -57,9 +59,9 @@ Ba khu vực chính, mỗi khu vực có bộ component riêng trong `components
 
 | Route | Khu vực | Mô tả |
 |---|---|---|
-| `/` | `components/landing/` | Landing page: hero, form báo giá (UI tĩnh, chưa nối DB), chatbot QnA gọi Gemini API thật + lưu Supabase (xem mục "Chatbot QnA" bên dưới), 3 điểm nổi bật |
+| `/` | `components/landing/` | Landing page: hero, form báo giá (gọi `POST /api/quote` thật, giá tính phía server, lưu bảng `quote_requests` — xem mục "Form báo giá" bên dưới), chatbot QnA gọi Gemini API thật + lưu Supabase (xem mục "Chatbot QnA" bên dưới), 3 điểm nổi bật |
 | `/portal` | `components/portal/` | Cổng hồ sơ học viên demo (dữ liệu từ `currentStudent` trong mock-data): upload giấy tờ, thông tin trích xuất, đối chiếu điểm chuẩn |
-| `/admin/*` | `components/admin/` | Dashboard nội bộ, dùng chung `AdminLayout` (`app/admin/layout.tsx`) với `AdminSidebar`/`AdminMobileNav` (`components/admin/sidebar.tsx`) — điều hướng khai báo tập trung trong mảng `adminNavItems`. `/admin` redirect sang `/admin/requests`. Các trang con: `requests`, `schools`, `profiles` (mock), `conversations` (Supabase thật) |
+| `/admin/*` | `components/admin/` | Dashboard nội bộ, dùng chung `AdminLayout` (`app/admin/layout.tsx`) với `AdminSidebar`/`AdminMobileNav` (`components/admin/sidebar.tsx`) — điều hướng khai báo tập trung trong mảng `adminNavItems`. `/admin` redirect sang `/admin/requests`. Các trang con: `schools`, `profiles` (mock), `requests`, `conversations` (Supabase thật) |
 
 Component dùng chung nằm ngoài 3 thư mục trên: `site-header.tsx`, `site-footer.tsx`, `logo.tsx`,
 `status-badge.tsx` (định nghĩa tone màu + nhãn tiếng Việt cho `DocStatus`/`RequestStatus`, dùng
@@ -68,10 +70,11 @@ chung giữa `/portal` và `/admin`).
 `components/ui/` là các primitive shadcn/ui (style **base-nova**, nền Base UI — KHÔNG phải
 Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn ở trên.
 
-### Chatbot QnA (Gemini + Supabase) — điểm nối API/DB thật duy nhất hiện tại
+### Chatbot QnA (Gemini + Supabase)
 
 - [`app/api/chat/route.ts`](app/api/chat/route.ts): Route Handler `GET`/`POST` chính của chatbot
-  (route handler thứ hai là `app/api/admin/extract-lead/route.ts`, xem bên dưới). `POST` nhận `{ message, sessionToken }`, gọi REST API Gemini (model `gemini-3.5-flash-lite`) bằng
+  (các route handler khác: `app/api/admin/extract-lead/route.ts` bên dưới và `app/api/quote/route.ts`
+  ở mục "Form báo giá"). `POST` nhận `{ message, sessionToken }`, gọi REST API Gemini (model `gemini-3.5-flash-lite`) bằng
   `GEMINI_API_KEY`, đồng thời đọc/ghi hội thoại vào Supabase (bảng `chat_conversations` /
   `chat_messages`) qua `ctx.supabaseAdmin` (`withSupabase({ auth: "none" })` từ gói `@supabase/server`
   — xem SKILL `supabase-server`). `GET ?sessionToken=` trả lại lịch sử hội thoại để hydrate widget.
@@ -116,6 +119,29 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
 - [`chat_leads`](lib/database.types.ts): bảng Supabase lưu kết quả trích xuất lead, RLS bật và không
   có policy nào (cùng mô hình với `chat_conversations`/`chat_messages`) — chỉ `getSupabaseAdmin()`
   phía server mới đọc/ghi được.
+
+### Form báo giá (Supabase)
+
+- [`app/api/quote/route.ts`](app/api/quote/route.ts): Route Handler `POST` nhận
+  `{ country, educationLevel, servicePackage, email, phone }` từ form trang chủ, validate từng
+  trường, **tính giá phía server** từ `servicePackages` trong `lib/mock-data.ts` (không tin giá do
+  client gửi lên), lưu vào bảng `quote_requests` qua `ctx.supabaseAdmin`
+  (`withSupabase({ auth: "none" })` — khách vãng lai chưa có auth), rồi trả `{ price }` cho client
+  hiển thị. Muốn đổi bảng giá thì sửa `price` trong `servicePackages` — đó là nguồn giá duy nhất,
+  dùng chung cho cả card hiển thị trên form lẫn giá server tính.
+- [`quote_requests`](lib/database.types.ts): bảng Supabase lưu yêu cầu báo giá (dữ liệu khách hàng),
+  RLS bật và không có policy nào — chỉ server (secret key) đọc/ghi được, cùng mô hình với các bảng
+  chat. Cột `status` (`cho_duyet` mặc định / `da_duyet` / `tu_choi`) khớp type `RequestStatus`.
+- [`app/api/admin/request-status/route.ts`](app/api/admin/request-status/route.ts): Route Handler
+  `POST` nhận `{ requestId, status }` để admin đổi trạng thái một yêu cầu (cùng mô hình
+  `auth: "none"` như `/api/admin/extract-lead` — chưa có auth cho `/admin/*`). Kích hoạt từ nút
+  Duyệt/Từ chối trong [`components/admin/request-status-buttons.tsx`](components/admin/request-status-buttons.tsx)
+  (client component, gọi `router.refresh()` sau khi lưu; nút của trạng thái hiện tại bị disable).
+- [`components/landing/quote-form.tsx`](components/landing/quote-form.tsx): client component chỉ gọi
+  `/api/quote`, hiển thị giá server trả về (state `quotedPrice`), có loading/error state.
+- [`app/admin/requests/page.tsx`](app/admin/requests/page.tsx): Server Component đọc danh sách yêu
+  cầu báo giá trực tiếp từ Supabase qua `getSupabaseAdmin()` — không còn dùng mock
+  `admissionRequests` (mảng này vẫn còn trong `lib/mock-data.ts` nhưng hiện không nơi nào dùng).
 
 ### Quy ước cần theo
 

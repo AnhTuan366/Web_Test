@@ -76,7 +76,7 @@ export const servicePackages: ServiceOption[] = [
   {
     id: "co_ban",
     name: "Cơ bản",
-    price: 18_000_000,
+    price: 15_000_000,
     description: "Phù hợp nếu hồ sơ của bạn đơn giản và đã chuẩn bị sẵn phần lớn giấy tờ.",
     benefits: [
       "Đối chiếu điểm chuẩn tự động",
@@ -88,7 +88,7 @@ export const servicePackages: ServiceOption[] = [
   {
     id: "toan_dien",
     name: "Toàn diện",
-    price: 45_000_000,
+    price: 30_000_000,
     description: "Đồng hành trọn gói từ tư vấn trường đến nộp hồ sơ.",
     benefits: [
       "Toàn bộ quyền lợi gói Cơ bản",

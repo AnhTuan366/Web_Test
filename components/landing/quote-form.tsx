@@ -45,13 +45,44 @@ export function QuoteForm() {
   const [selectedPackage, setSelectedPackage] = React.useState<ServicePackage>("co_ban");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
-  const [submitted, setSubmitted] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  // Giá do server tính và trả về sau khi lưu yêu cầu — không lấy từ mock phía client.
+  const [quotedPrice, setQuotedPrice] = React.useState<number | null>(null);
 
-  const chosenPackage = servicePackages.find((p) => p.id === selectedPackage)!;
-
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+    if (!country) {
+      setError("Vui lòng chọn quốc gia muốn du học.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setQuotedPrice(null);
+    try {
+      const res = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          country,
+          educationLevel: degreeLevel,
+          servicePackage: selectedPackage,
+          email,
+          phone,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || typeof data?.price !== "number") {
+        setError(data?.error ?? "Không gửi được yêu cầu, thử lại sau.");
+        return;
+      }
+      setQuotedPrice(data.price);
+    } catch {
+      setError("Không kết nối được máy chủ, thử lại sau.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -179,21 +210,28 @@ export function QuoteForm() {
             <Button
               type="submit"
               size="lg"
+              disabled={loading}
               className="w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
             >
-              Nhận báo giá
+              {loading ? "Đang tính báo giá..." : "Nhận báo giá"}
             </Button>
 
-            {submitted && (
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            {quotedPrice !== null && (
               <div className="space-y-3 rounded-xl border border-primary/20 bg-accent p-5">
                 <p className="text-sm text-muted-foreground">Mức giá dự kiến cho bạn</p>
                 <p className="text-3xl font-semibold tracking-tight text-accent-foreground">
-                  {formatVnd(chosenPackage.price)}
+                  {formatVnd(quotedPrice)}
                 </p>
                 <div className="flex items-start gap-2 text-sm text-accent-foreground">
                   <Mail className="mt-0.5 size-4 shrink-0" />
                   <span>
-                    Báo giá đã được gửi qua email, đội ngũ sẽ liên hệ trong 24h.
+                    Yêu cầu của bạn đã được ghi nhận, đội ngũ sẽ liên hệ qua email trong 24h.
                   </span>
                 </div>
               </div>
