@@ -11,16 +11,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Giới thiệu dự án
 
 **DuHoc24** — website mẫu "Cổng Tiếp Nhận Hồ Sơ Du Học", dùng cho khoá lập trình 6 tuần, phát triển
-dần theo roadmap trong [README.md](README.md). Phần lớn dữ liệu vẫn là mock cứng trong
-[`lib/mock-data.ts`](lib/mock-data.ts) — cổng hồ sơ (`/portal`) và các trang `/admin/schools`,
-`/admin/profiles` **chưa** nối database/authentication thật (dự kiến Supabase ở Tuần 3, magic link ở
-Tuần 6). Ngoại lệ đã hoàn thành: (1) khung chat QnA ở trang chủ đã nối **Gemini API thật** (Tuần 2)
-và lưu hội thoại thật trong **Supabase Postgres** (bảng `chat_conversations`/`chat_messages`, chỉ
-server truy cập được) — xem mục "Chatbot QnA" bên dưới; `/admin/conversations` đọc trực tiếp từ 2
-bảng này, không còn dùng mock. (2) Form báo giá trên trang chủ đã hoạt động thật: `POST /api/quote`
-tính giá phía server và lưu vào bảng `quote_requests` (cùng mô hình chỉ-server), `/admin/requests`
-đọc trực tiếp từ bảng này — xem mục "Form báo giá" bên dưới. Không tự ý thêm logic gọi API/DB thật
-khác (upload file, auth...) trừ khi được yêu cầu rõ ràng.
+dần theo roadmap trong [README.md](README.md). Một phần dữ liệu vẫn là mock cứng trong
+[`lib/mock-data.ts`](lib/mock-data.ts) — trang `/admin/profiles` **chưa** nối database, và toàn site
+**chưa** có authentication thật (dự kiến magic link ở Tuần 6). Ngoại lệ đã hoàn thành: (1) khung
+chat QnA ở trang chủ đã nối **Gemini API thật** (Tuần 2) và lưu hội thoại thật trong **Supabase
+Postgres** (bảng `chat_conversations`/`chat_messages`, chỉ server truy cập được) — xem mục "Chatbot
+QnA" bên dưới; `/admin/conversations` đọc trực tiếp từ 2 bảng này, không còn dùng mock. (2) Form
+báo giá trên trang chủ đã hoạt động thật: `POST /api/quote` tính giá phía server và lưu vào bảng
+`quote_requests` (cùng mô hình chỉ-server), `/admin/requests` đọc trực tiếp từ bảng này — xem mục
+"Form báo giá" bên dưới. (3) Danh sách trường tham chiếu là dữ liệu thật trong bảng `schools`
+(công khai — RLS có policy cho đọc), dùng bởi `/admin/schools` và phần đối chiếu điểm chuẩn ở
+`/portal` — xem mục "Trường tham chiếu" bên dưới. (4) Cổng `/portal` đã nhận upload giấy tờ thật:
+Gemini đọc file và trích xuất thông tin, lưu vào bảng `portal_profiles`/`portal_documents` + bucket
+`portal-documents` (riêng tư, chỉ server truy cập được) — xem mục "Cổng hồ sơ /portal" bên dưới.
+Không tự ý thêm logic gọi API/DB thật khác (auth...) trừ khi được yêu cầu rõ ràng.
 
 ## Lệnh thường dùng
 
@@ -60,7 +64,7 @@ Ba khu vực chính, mỗi khu vực có bộ component riêng trong `components
 | Route | Khu vực | Mô tả |
 |---|---|---|
 | `/` | `components/landing/` | Landing page: hero, form báo giá (gọi `POST /api/quote` thật, giá tính phía server, lưu bảng `quote_requests` — xem mục "Form báo giá" bên dưới), chatbot QnA gọi Gemini API thật + lưu Supabase (xem mục "Chatbot QnA" bên dưới), 3 điểm nổi bật |
-| `/portal` | `components/portal/` | Cổng hồ sơ học viên demo (dữ liệu từ `currentStudent` trong mock-data): upload giấy tờ, thông tin trích xuất, đối chiếu điểm chuẩn |
+| `/portal` | `components/portal/` | Cổng hồ sơ học viên demo: upload 3 loại giấy tờ thật (Gemini trích xuất, lưu Supabase — xem mục "Cổng hồ sơ /portal" bên dưới), đối chiếu điểm chuẩn với bảng `schools` thật |
 | `/admin/*` | `components/admin/` | Dashboard nội bộ, dùng chung `AdminLayout` (`app/admin/layout.tsx`) với `AdminSidebar`/`AdminMobileNav` (`components/admin/sidebar.tsx`) — điều hướng khai báo tập trung trong mảng `adminNavItems`. `/admin` redirect sang `/admin/requests`. Các trang con: `schools`, `profiles` (mock), `requests`, `conversations` (Supabase thật) |
 
 Component dùng chung nằm ngoài 3 thư mục trên: `site-header.tsx`, `site-footer.tsx`, `logo.tsx`,
@@ -142,6 +146,68 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
 - [`app/admin/requests/page.tsx`](app/admin/requests/page.tsx): Server Component đọc danh sách yêu
   cầu báo giá trực tiếp từ Supabase qua `getSupabaseAdmin()` — không còn dùng mock
   `admissionRequests` (mảng này vẫn còn trong `lib/mock-data.ts` nhưng hiện không nơi nào dùng).
+
+### Trường tham chiếu (bảng `schools`)
+
+- [`schools`](lib/database.types.ts): bảng Supabase lưu trường tham chiếu (tên, quốc gia, GPA tối
+  thiểu, IELTS tối thiểu). Khác các bảng còn lại: đây là dữ liệu **công khai** — RLS bật nhưng CÓ
+  policy cho phép `select` với anon/authenticated; ghi (insert/update/delete) vẫn chỉ server làm
+  được. Mảng mock `schools` trong `lib/mock-data.ts` không còn nơi nào dùng.
+- [`lib/schools.ts`](lib/schools.ts): helper `getSchools()` đọc bảng này qua `getSupabaseAdmin()`
+  và map về shape `School` (camelCase) mà các component dùng. Là nguồn duy nhất để đọc danh sách
+  trường — cả [`app/admin/schools/page.tsx`](app/admin/schools/page.tsx) lẫn
+  [`app/portal/page.tsx`](app/portal/page.tsx) (truyền xuống `SchoolMatch`) đều gọi hàm này.
+  Muốn thêm/sửa trường thì sửa trực tiếp trong bảng `schools` (SQL), chưa có UI ghi — nút
+  Thêm/Sửa/Xoá ở `/admin/schools` vẫn là mock.
+- [`scholarships`](lib/database.types.ts): bảng Supabase lưu học bổng theo từng trường
+  (FK `school_id` → `schools`, xoá trường thì cascade). Cột `min_gpa`/`min_ielts` nullable —
+  học bổng chỉ xét điều kiện nào có giá trị; `support` là text mô tả mức hỗ trợ. Cùng mô hình
+  công khai với `schools`: RLS bật + policy cho `select`, ghi chỉ server làm được, sửa dữ liệu
+  bằng SQL trực tiếp. Bảng này dành cho AI tra cứu khi gợi ý học bổng — xem mục "/portal" bên dưới.
+
+### Cổng hồ sơ /portal (upload giấy tờ + Gemini trích xuất)
+
+- Mô hình dữ liệu: mỗi trình duyệt = một hồ sơ demo, nhận diện bằng `sessionToken` (UUID trong
+  `localStorage`, key `duhoc24_portal_session`) — cùng cách làm với chatbot, chờ auth thật ở Tuần 6.
+  Bảng [`portal_profiles`](lib/database.types.ts) (1 dòng/hồ sơ) và
+  [`portal_documents`](lib/database.types.ts) (1 dòng/loại giấy tờ/hồ sơ, unique
+  `(profile_id, doc_type)`, nộp lại thì upsert ghi đè). Dữ liệu **riêng tư**: RLS bật, không có
+  policy — chỉ `getSupabaseAdmin()` phía server đọc/ghi được. File gốc lưu trong bucket Storage
+  `portal-documents` (private, 10MB, chỉ nhận PDF/JPG/PNG, không có storage policy).
+- [`lib/document-extraction.ts`](lib/document-extraction.ts): nguồn duy nhất cho 3 loại giấy tờ
+  (`PortalDocType`: `bang_diem` PDF / `ielts` ảnh / `tuy_than` ảnh), system instruction + JSON
+  schema (structured output) cho Gemini theo từng loại, và `validateExtraction()` — kiểm tra hợp lệ
+  bằng **code thường, không hỏi AI**: thiếu trường bắt buộc nào thì báo đích danh trường đó
+  (`can_nop_lai` + `reason`), chứng chỉ IELTS hết hạn cũng bị `can_nop_lai` kèm ngày hết hạn.
+  Gemini chỉ làm nhiệm vụ đọc thông tin từ file (trường không đọc được → null).
+- [`app/api/portal/documents/route.ts`](app/api/portal/documents/route.ts): Route Handler
+  (`withSupabase({ auth: "none" })`, cùng mô hình các route khác). `POST` nhận
+  `multipart/form-data { file, docType, sessionToken }`: validate loại/kích thước file, gọi Gemini
+  (`gemini-3.5-flash-lite`, file gửi dạng `inline_data` base64), chạy `validateExtraction()`, upload
+  file vào bucket rồi upsert `portal_documents`. `GET ?sessionToken=` trả lại giấy tờ đã nộp để
+  hydrate trang khi mở lại.
+- [`components/portal/portal-dashboard.tsx`](components/portal/portal-dashboard.tsx): client
+  component điều phối toàn trang — chỉ gọi `/api/portal/documents`, không bao giờ gọi Supabase
+  trực tiếp. Tính phần "Tình trạng hồ sơ" (còn thiếu gì / file nào cần nộp lại và vì sao) bằng code
+  thường phía client từ danh sách giấy tờ. Các component con:
+  [`document-upload-card.tsx`](components/portal/document-upload-card.tsx) (card upload từng loại,
+  file `document-features.tsx` cũ đã xoá), [`extracted-info.tsx`](components/portal/extracted-info.tsx)
+  (hiện đầy đủ thông tin trích xuất theo từng giấy tờ, trường thiếu hiện "—"),
+  [`school-match.tsx`](components/portal/school-match.tsx) (đối chiếu điểm chuẩn — chỉ dùng điểm từ
+  giấy tờ `hop_le`, IELTS hết hạn không được tính; đạt/chưa đạt là phép so sánh số bằng code
+  thường, không hỏi AI). Token phiên nằm trong
+  [`portal-session.ts`](components/portal/portal-session.ts) — client component gọi
+  `getPortalSessionToken()` trong event handler/effect, không giữ token trong state.
+- Gợi ý học bổng bằng **function calling** của Gemini:
+  [`lib/scholarship-suggestion.ts`](lib/scholarship-suggestion.ts) là nguồn duy nhất cho system
+  instruction + khai báo công cụ `tra_cuu_hoc_bong` (tra học bổng theo tên trường).
+  [`app/api/portal/scholarship-suggestions/route.ts`](app/api/portal/scholarship-suggestions/route.ts)
+  (`POST { sessionToken }`) đọc lại điểm từ giấy tờ hợp lệ trong DB (không tin client), tính danh
+  sách trường đạt/chưa đạt bằng code thường (cùng luật với `SchoolMatch`), rồi chạy vòng lặp
+  function calling: Gemini TỰ quyết tra cứu trường nào, server chỉ thực thi truy vấn bảng
+  `scholarships` khi được gọi (tối đa `MAX_TOOL_TURNS` vòng) — không viết cứng luật chọn học bổng.
+  Kích hoạt từ nút trong [`scholarship-suggestion.tsx`](components/portal/scholarship-suggestion.tsx)
+  (client, chỉ bật khi đã có bảng điểm + IELTS hợp lệ); kết quả không lưu DB, mỗi lần bấm gọi lại.
 
 ### Quy ước cần theo
 

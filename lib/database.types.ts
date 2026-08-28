@@ -130,6 +130,71 @@ export type Database = {
           },
         ]
       }
+      portal_documents: {
+        Row: {
+          doc_type: string
+          extracted: Json
+          file_name: string
+          id: string
+          mime_type: string
+          profile_id: string
+          reason: string | null
+          status: string
+          storage_path: string
+          uploaded_at: string
+        }
+        Insert: {
+          doc_type: string
+          extracted?: Json
+          file_name: string
+          id?: string
+          mime_type: string
+          profile_id: string
+          reason?: string | null
+          status: string
+          storage_path: string
+          uploaded_at?: string
+        }
+        Update: {
+          doc_type?: string
+          extracted?: Json
+          file_name?: string
+          id?: string
+          mime_type?: string
+          profile_id?: string
+          reason?: string | null
+          status?: string
+          storage_path?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_documents_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "portal_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          session_token: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          session_token: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_token?: string
+        }
+        Relationships: []
+      }
       quote_requests: {
         Row: {
           country: string
@@ -163,6 +228,71 @@ export type Database = {
           price?: number
           service_package?: string
           status?: string
+        }
+        Relationships: []
+      }
+      scholarships: {
+        Row: {
+          created_at: string
+          id: string
+          min_gpa: number | null
+          min_ielts: number | null
+          name: string
+          school_id: string
+          support: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_gpa?: number | null
+          min_ielts?: number | null
+          name: string
+          school_id: string
+          support: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_gpa?: number | null
+          min_ielts?: number | null
+          name?: string
+          school_id?: string
+          support?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scholarships_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schools: {
+        Row: {
+          country: string
+          created_at: string
+          id: string
+          min_gpa: number
+          min_ielts: number
+          name: string
+        }
+        Insert: {
+          country: string
+          created_at?: string
+          id?: string
+          min_gpa: number
+          min_ielts: number
+          name: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          id?: string
+          min_gpa?: number
+          min_ielts?: number
+          name?: string
         }
         Relationships: []
       }

@@ -10,9 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { schools } from "@/lib/mock-data";
+import { getSchools } from "@/lib/schools";
 
-export default function AdminSchoolsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AdminSchoolsPage() {
+  const schools = await getSchools();
+
   return (
     <>
       <AdminPageHeader
@@ -38,6 +42,13 @@ export default function AdminSchoolsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {schools.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  Chưa có trường tham chiếu nào.
+                </TableCell>
+              </TableRow>
+            )}
             {schools.map((school) => (
               <TableRow key={school.id}>
                 <TableCell className="font-medium">{school.name}</TableCell>

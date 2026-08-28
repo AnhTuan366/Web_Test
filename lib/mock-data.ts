@@ -17,6 +17,8 @@ export interface School {
   minIelts: number;
 }
 
+// Danh sách trường tham chiếu giờ nằm trong bảng `schools` (Supabase, dữ liệu công khai)
+// — xem lib/schools.ts. Mảng mock dưới đây không còn nơi nào dùng, giữ lại làm ví dụ shape.
 export const countries = [
   "Mỹ",
   "Anh",
@@ -217,7 +219,9 @@ export const studentProfiles: StudentProfile[] = [
 // Hội thoại chatbot QnA giờ lưu thật trong Supabase (bảng chat_conversations /
 // chat_messages, xem app/api/chat/route.ts) — không còn mock ở đây nữa.
 
-// Hồ sơ của học viên đang đăng nhập demo tại /portal
+// Hồ sơ học viên tại /portal giờ là dữ liệu thật (bảng portal_profiles/portal_documents,
+// upload + trích xuất bằng Gemini — xem app/api/portal/documents/route.ts). Object mock
+// dưới đây không còn nơi nào dùng.
 export const currentStudent = {
   name: "Nguyễn Minh Anh",
   email: "minhanh.nguyen@example.com",
