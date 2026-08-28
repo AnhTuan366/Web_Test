@@ -58,6 +58,7 @@ export function ExtractedInfo({ transcript, ielts, identity }: ExtractedInfoProp
         { label: "Viết", value: formatScore(ielts.writing) },
         { label: "Nói", value: formatScore(ielts.speaking) },
         { label: "Điểm tổng", value: formatScore(ielts.overall) },
+        { label: "Ngày thi", value: formatDate(ielts.testDate) },
         { label: "Hết hạn ngày", value: formatDate(ielts.expiryDate) },
       ],
     },

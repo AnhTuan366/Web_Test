@@ -133,7 +133,7 @@ export function PortalDashboard({ schools }: { schools: School[] }) {
     docs.tuy_than ? (docs.tuy_than.extracted as unknown as IdentityExtraction) : null;
 
   // Chỉ lấy điểm từ giấy tờ HỢP LỆ để đối chiếu điểm chuẩn (giấy tờ cần nộp lại —
-  // ví dụ IELTS hết hạn — không được tính).
+  // thiếu trường bắt buộc — không được tính).
   const gpa = docs.bang_diem?.status === "hop_le" ? (transcript?.gpa ?? null) : null;
   const ieltsOverall = docs.ielts?.status === "hop_le" ? (ieltsDoc?.overall ?? null) : null;
 

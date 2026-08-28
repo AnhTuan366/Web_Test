@@ -155,8 +155,10 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
   được. Mảng mock `schools` trong `lib/mock-data.ts` không còn nơi nào dùng.
 - [`lib/schools.ts`](lib/schools.ts): helper `getSchools()` đọc bảng này qua `getSupabaseAdmin()`
   và map về shape `School` (camelCase) mà các component dùng. Là nguồn duy nhất để đọc danh sách
-  trường — cả [`app/admin/schools/page.tsx`](app/admin/schools/page.tsx) lẫn
-  [`app/portal/page.tsx`](app/portal/page.tsx) (truyền xuống `SchoolMatch`) đều gọi hàm này.
+  trường — [`app/admin/schools/page.tsx`](app/admin/schools/page.tsx),
+  [`app/portal/page.tsx`](app/portal/page.tsx) (truyền xuống `SchoolMatch`) và trang công khai
+  [`app/diem-chuan/page.tsx`](app/diem-chuan/page.tsx) ("Điểm chuẩn trường" trên menu chính +
+  footer) đều gọi hàm này.
   Muốn thêm/sửa trường thì sửa trực tiếp trong bảng `schools` (SQL), chưa có UI ghi — nút
   Thêm/Sửa/Xoá ở `/admin/schools` vẫn là mock.
 - [`scholarships`](lib/database.types.ts): bảng Supabase lưu học bổng theo từng trường
@@ -178,8 +180,12 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
   (`PortalDocType`: `bang_diem` PDF / `ielts` ảnh / `tuy_than` ảnh), system instruction + JSON
   schema (structured output) cho Gemini theo từng loại, và `validateExtraction()` — kiểm tra hợp lệ
   bằng **code thường, không hỏi AI**: thiếu trường bắt buộc nào thì báo đích danh trường đó
-  (`can_nop_lai` + `reason`), chứng chỉ IELTS hết hạn cũng bị `can_nop_lai` kèm ngày hết hạn.
-  Gemini chỉ làm nhiệm vụ đọc thông tin từ file (trường không đọc được → null).
+  (`can_nop_lai` + `reason`). Chứng chỉ IELTS hết hạn vẫn được chấp nhận (`hop_le`) — không có quy
+  tắc bắt buộc nộp lại vì hết hạn. Chứng chỉ IELTS trích cả `testDate` (ngày thi) lẫn `expiryDate`
+  (ngày hết hạn — Gemini tự tính = ngày thi + 2 năm nếu chứng chỉ không ghi, chỉ để hiển thị cho
+  học viên biết, không dùng để chặn nộp). Gemini chỉ làm nhiệm vụ đọc thông tin từ file (trường
+  không đọc được → null); system instruction mô tả kỹ bố cục thực tế của từng loại giấy tờ (CCCD,
+  CMND, hộ chiếu, Test Report Form IELTS, bảng điểm/học bạ) để giảm tình trạng trích thiếu trường.
 - [`app/api/portal/documents/route.ts`](app/api/portal/documents/route.ts): Route Handler
   (`withSupabase({ auth: "none" })`, cùng mô hình các route khác). `POST` nhận
   `multipart/form-data { file, docType, sessionToken }`: validate loại/kích thước file, gọi Gemini
@@ -193,9 +199,11 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
   [`document-upload-card.tsx`](components/portal/document-upload-card.tsx) (card upload từng loại,
   file `document-features.tsx` cũ đã xoá), [`extracted-info.tsx`](components/portal/extracted-info.tsx)
   (hiện đầy đủ thông tin trích xuất theo từng giấy tờ, trường thiếu hiện "—"),
-  [`school-match.tsx`](components/portal/school-match.tsx) (đối chiếu điểm chuẩn — chỉ dùng điểm từ
-  giấy tờ `hop_le`, IELTS hết hạn không được tính; đạt/chưa đạt là phép so sánh số bằng code
-  thường, không hỏi AI). Token phiên nằm trong
+  [`school-match.tsx`](components/portal/school-match.tsx) (luôn hiển thị danh sách điểm chuẩn
+  các trường; chỉ khi có đủ GPA + IELTS từ giấy tờ `hop_le` mới đánh dấu thêm đạt/chưa đạt — IELTS
+  hết hạn vẫn tính vì `hop_le` không còn xét hạn (xem `validateExtraction()` ở trên), chưa đủ điểm
+  thì từng trường hiện icon trung tính; đạt/chưa đạt là phép so sánh số bằng code thường, không
+  hỏi AI). Token phiên nằm trong
   [`portal-session.ts`](components/portal/portal-session.ts) — client component gọi
   `getPortalSessionToken()` trong event handler/effect, không giữ token trong state.
 - Gợi ý học bổng bằng **function calling** của Gemini:
