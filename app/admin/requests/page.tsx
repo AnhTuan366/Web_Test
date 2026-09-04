@@ -43,7 +43,7 @@ async function getQuoteRequests() {
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("quote_requests")
-    .select("id, country, education_level, service_package, price, email, phone, status, created_at")
+    .select("id, name, country, education_level, service_package, price, email, phone, status, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -67,6 +67,7 @@ export default async function AdminRequestsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Tên khách</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Số điện thoại</TableHead>
               <TableHead>Quốc gia</TableHead>
@@ -81,14 +82,15 @@ export default async function AdminRequestsPage() {
           <TableBody>
             {requests.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground">
+                <TableCell colSpan={10} className="text-center text-muted-foreground">
                   Chưa có yêu cầu báo giá nào.
                 </TableCell>
               </TableRow>
             )}
             {requests.map((req) => (
               <TableRow key={req.id}>
-                <TableCell className="font-medium">{req.email}</TableCell>
+                <TableCell className="font-medium">{req.name}</TableCell>
+                <TableCell>{req.email}</TableCell>
                 <TableCell>{req.phone}</TableCell>
                 <TableCell>{req.country}</TableCell>
                 <TableCell>

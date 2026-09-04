@@ -202,6 +202,7 @@ export type Database = {
           education_level: string
           email: string
           id: string
+          name: string
           phone: string
           price: number
           service_package: string
@@ -213,6 +214,7 @@ export type Database = {
           education_level: string
           email: string
           id?: string
+          name: string
           phone: string
           price: number
           service_package: string
@@ -224,6 +226,7 @@ export type Database = {
           education_level?: string
           email?: string
           id?: string
+          name?: string
           phone?: string
           price?: number
           service_package?: string

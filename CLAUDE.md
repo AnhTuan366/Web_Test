@@ -127,12 +127,21 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
 ### Form báo giá (Supabase)
 
 - [`app/api/quote/route.ts`](app/api/quote/route.ts): Route Handler `POST` nhận
-  `{ country, educationLevel, servicePackage, email, phone }` từ form trang chủ, validate từng
+  `{ name, country, educationLevel, servicePackage, email, phone }` từ form trang chủ, validate từng
   trường, **tính giá phía server** từ `servicePackages` trong `lib/mock-data.ts` (không tin giá do
   client gửi lên), lưu vào bảng `quote_requests` qua `ctx.supabaseAdmin`
-  (`withSupabase({ auth: "none" })` — khách vãng lai chưa có auth), rồi trả `{ price }` cho client
-  hiển thị. Muốn đổi bảng giá thì sửa `price` trong `servicePackages` — đó là nguồn giá duy nhất,
-  dùng chung cho cả card hiển thị trên form lẫn giá server tính.
+  (`withSupabase({ auth: "none" })` — khách vãng lai chưa có auth). Muốn đổi bảng giá thì sửa `price`
+  trong `servicePackages` — đó là nguồn giá duy nhất, dùng chung cho cả card hiển thị trên form lẫn
+  giá server tính. Sau khi lưu thành công vào Supabase, route gọi `notifyQuoteWebhook()` (hàm nội bộ
+  trong cùng file) để `POST` `{ name, email, servicePackage, price }` (tên gói ở dạng nhãn tiếng
+  Việt, không phải id) tới webhook Make.com ở biến môi trường `QUOTE_WEBHOOK_URL` — hàm này trả về
+  `true`/`false` dựa trên `res.ok` của webhook (bắt lỗi mạng thì cũng trả `false`), **không** ném lỗi
+  nên không làm hỏng luồng báo giá của khách (khách vẫn nhận được giá dù webhook lỗi). Route trả về
+  `{ price, emailSent }` cho client — `emailSent` phản ánh đúng kết quả gọi webhook ở trên.
+  [`components/landing/quote-form.tsx`](components/landing/quote-form.tsx) dùng `emailSent` để hiển
+  thị 1 trong 2 thông báo sau khi submit: gửi email thành công, hoặc đã ghi nhận yêu cầu nhưng gửi
+  email thất bại (đội ngũ vẫn sẽ liên hệ trực tiếp) — **không** hiển thị "đã gửi email thành công"
+  trừ khi webhook thực sự trả 200.
 - [`quote_requests`](lib/database.types.ts): bảng Supabase lưu yêu cầu báo giá (dữ liệu khách hàng),
   RLS bật và không có policy nào — chỉ server (secret key) đọc/ghi được, cùng mô hình với các bảng
   chat. Cột `status` (`cho_duyet` mặc định / `da_duyet` / `tu_choi`) khớp type `RequestStatus`.
@@ -141,6 +150,12 @@ Radix), không sửa tay trừ khi cần thiết; ưu tiên thêm qua CLI shadcn
   `auth: "none"` như `/api/admin/extract-lead` — chưa có auth cho `/admin/*`). Kích hoạt từ nút
   Duyệt/Từ chối trong [`components/admin/request-status-buttons.tsx`](components/admin/request-status-buttons.tsx)
   (client component, gọi `router.refresh()` sau khi lưu; nút của trạng thái hiện tại bị disable).
+  Khi status đổi thành `da_duyet`, route gọi `notifyApprovalWebhook()` (hàm nội bộ trong cùng file)
+  để `POST` `{ name, email, loginLink }` tới webhook Make.com ở biến môi trường
+  `APPROVAL_WEBHOOK_URL` — `loginLink` hiện chỉ là link mẫu tới `NEXT_PUBLIC_SITE_URL` + `/login`
+  (trang `/login` và magic link thật chưa làm, dự kiến Tuần 6), **chưa** dùng để đăng nhập thật. Lỗi
+  gọi webhook chỉ log lại, không làm hỏng luồng duyệt của admin (không trả `emailSent` cho hành động
+  này vì admin không cần biết kết quả gửi ngay trên UI).
 - [`components/landing/quote-form.tsx`](components/landing/quote-form.tsx): client component chỉ gọi
   `/api/quote`, hiển thị giá server trả về (state `quotedPrice`), có loading/error state.
 - [`app/admin/requests/page.tsx`](app/admin/requests/page.tsx): Server Component đọc danh sách yêu

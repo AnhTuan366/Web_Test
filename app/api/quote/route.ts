@@ -10,6 +10,31 @@ function isServicePackage(value: unknown): value is ServicePackage {
   return servicePackages.some((pkg) => pkg.id === value);
 }
 
+// Báo cho hệ thống ngoài (Make.com) biết có yêu cầu báo giá mới — lỗi ở đây
+// không được làm hỏng luồng báo giá của khách (vẫn trả giá bình thường), chỉ
+// trả về true/false để client biết email xác nhận có gửi được hay không.
+async function notifyQuoteWebhook(payload: {
+  name: string;
+  email: string;
+  servicePackage: string;
+  price: number;
+}) {
+  const webhookUrl = process.env.QUOTE_WEBHOOK_URL;
+  if (!webhookUrl) return false;
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return res.ok;
+  } catch (webhookError) {
+    console.error("Lỗi gửi webhook yêu cầu báo giá", webhookError);
+    return false;
+  }
+}
+
 // Endpoint công khai cho khách vãng lai (chưa có hệ thống auth) — chỉ nhận và lưu
 // yêu cầu báo giá, không đọc dữ liệu ra. Giá được tính phía server từ bảng giá
 // trong lib/mock-data.ts, KHÔNG tin giá do trình duyệt gửi lên. Ghi vào bảng
@@ -20,6 +45,7 @@ export const POST = withSupabase<Database>(
   async (request, ctx) => {
     const body = await request.json().catch(() => null);
 
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
     const country = typeof body?.country === "string" ? body.country.trim() : "";
     const educationLevel =
       typeof body?.educationLevel === "string" ? body.educationLevel : "";
@@ -27,6 +53,9 @@ export const POST = withSupabase<Database>(
     const email = typeof body?.email === "string" ? body.email.trim() : "";
     const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
 
+    if (!name || name.length > 200) {
+      return Response.json({ error: "Vui lòng nhập họ tên." }, { status: 400 });
+    }
     if (!countries.includes(country)) {
       return Response.json({ error: "Vui lòng chọn quốc gia muốn du học." }, { status: 400 });
     }
@@ -43,9 +72,11 @@ export const POST = withSupabase<Database>(
       return Response.json({ error: "Số điện thoại không hợp lệ." }, { status: 400 });
     }
 
-    const price = servicePackages.find((pkg) => pkg.id === servicePackage)!.price;
+    const packageInfo = servicePackages.find((pkg) => pkg.id === servicePackage)!;
+    const price = packageInfo.price;
 
     const { error } = await ctx.supabaseAdmin.from("quote_requests").insert({
+      name,
       country,
       education_level: educationLevel,
       service_package: servicePackage,
@@ -59,6 +90,13 @@ export const POST = withSupabase<Database>(
       return Response.json({ error: "Không lưu được yêu cầu, thử lại sau." }, { status: 500 });
     }
 
-    return Response.json({ price });
+    const emailSent = await notifyQuoteWebhook({
+      name,
+      email,
+      servicePackage: packageInfo.name,
+      price,
+    });
+
+    return Response.json({ price, emailSent });
   },
 );

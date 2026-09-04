@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Check, Mail } from "lucide-react";
+import { AlertTriangle, Check, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,7 @@ function formatVnd(value: number) {
 }
 
 export function QuoteForm() {
+  const [name, setName] = React.useState("");
   const [country, setCountry] = React.useState<string>("");
   const [degreeLevel, setDegreeLevel] = React.useState<string>("dai_hoc");
   const [selectedPackage, setSelectedPackage] = React.useState<ServicePackage>("co_ban");
@@ -49,6 +50,9 @@ export function QuoteForm() {
   const [error, setError] = React.useState<string | null>(null);
   // Giá do server tính và trả về sau khi lưu yêu cầu — không lấy từ mock phía client.
   const [quotedPrice, setQuotedPrice] = React.useState<number | null>(null);
+  // true/false = server đã gọi webhook Make.com và biết được kết quả (200 hay không);
+  // null = chưa có kết quả (chưa submit hoặc submit lỗi trước khi tới bước gọi webhook).
+  const [emailSent, setEmailSent] = React.useState<boolean | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,11 +64,13 @@ export function QuoteForm() {
     setLoading(true);
     setError(null);
     setQuotedPrice(null);
+    setEmailSent(null);
     try {
       const res = await fetch("/api/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name,
           country,
           educationLevel: degreeLevel,
           servicePackage: selectedPackage,
@@ -78,6 +84,7 @@ export function QuoteForm() {
         return;
       }
       setQuotedPrice(data.price);
+      setEmailSent(Boolean(data.emailSent));
     } catch {
       setError("Không kết nối được máy chủ, thử lại sau.");
     } finally {
@@ -99,6 +106,18 @@ export function QuoteForm() {
 
         <Card className="mt-10 p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-2">
+              <Label htmlFor="name">Họ và tên</Label>
+              <Input
+                id="name"
+                type="text"
+                required
+                placeholder="Nguyễn Văn A"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="country">Quốc gia muốn du học</Label>
@@ -228,12 +247,22 @@ export function QuoteForm() {
                 <p className="text-3xl font-semibold tracking-tight text-accent-foreground">
                   {formatVnd(quotedPrice)}
                 </p>
-                <div className="flex items-start gap-2 text-sm text-accent-foreground">
-                  <Mail className="mt-0.5 size-4 shrink-0" />
-                  <span>
-                    Yêu cầu của bạn đã được ghi nhận, đội ngũ sẽ liên hệ qua email trong 24h.
-                  </span>
-                </div>
+                {emailSent ? (
+                  <div className="flex items-start gap-2 text-sm text-accent-foreground">
+                    <Mail className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      Yêu cầu của bạn đã được ghi nhận, email báo giá đã được gửi tới hộp thư của bạn.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-sm text-destructive">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      Yêu cầu của bạn đã được ghi nhận, nhưng gửi email báo giá không thành công.
+                      Đội ngũ tư vấn vẫn sẽ liên hệ trực tiếp với bạn trong 24h.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </form>

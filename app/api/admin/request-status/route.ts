@@ -9,6 +9,25 @@ function isRequestStatus(value: unknown): value is RequestStatus {
   return REQUEST_STATUSES.includes(value as RequestStatus);
 }
 
+// Báo cho hệ thống ngoài (Make.com) biết một yêu cầu vừa được admin duyệt — lỗi
+// ở đây chỉ log lại, không làm hỏng luồng duyệt của admin. Đường link đăng nhập
+// hiện là link mẫu tới trang /login trên site (trang này/magic link thật làm ở
+// Tuần 6) — chưa dùng để đăng nhập thật.
+async function notifyApprovalWebhook(payload: { name: string; email: string; loginLink: string }) {
+  const webhookUrl = process.env.APPROVAL_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (webhookError) {
+    console.error("Lỗi gửi webhook duyệt yêu cầu báo giá", webhookError);
+  }
+}
+
 // Cùng mô hình bảo mật với /api/admin/extract-lead: chỉ server có secret key mới
 // đọc/ghi được bảng quote_requests (RLS bật, không policy); /admin/* chưa có auth
 // nên endpoint này cũng chưa có auth.
@@ -30,7 +49,7 @@ export const POST = withSupabase<Database>(
       .from("quote_requests")
       .update({ status })
       .eq("id", requestId)
-      .select("id")
+      .select("id, name, email")
       .maybeSingle();
 
     if (error) {
@@ -39,6 +58,11 @@ export const POST = withSupabase<Database>(
     }
     if (!updated) {
       return Response.json({ error: "Không tìm thấy yêu cầu báo giá này." }, { status: 404 });
+    }
+
+    if (status === "da_duyet") {
+      const loginLink = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/login`;
+      await notifyApprovalWebhook({ name: updated.name, email: updated.email, loginLink });
     }
 
     return Response.json({ status });
